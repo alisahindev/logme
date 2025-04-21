@@ -1,0 +1,191 @@
+## 1. Clean and Readable Code
+Code should always be **readable and understandable**. Simplify complex structures, and use meaningful function and variable names. Add descriptive comments so that others can easily understand your code.
+
+## 2. Single Responsibility Principle
+Functions and classes should have **one responsibility**. A function should do one thing and do it well. This makes the code easier to maintain and test.
+
+## 3. Testable Code
+Make your code **testable**. Each function should be small and independent, minimizing external dependencies. This makes writing unit tests and verifying the correctness of your code easier.
+
+## 4. Error Handling
+Handle errors in a **specific and meaningful** way. Error messages should be clear and informative, providing enough information to diagnose the issue. Ensure that errors are compatible with the rest of the system and offer helpful messages.
+
+## 5. Avoiding Repetition and Optimizing Code
+Avoid repetition in your code. If you are performing the same task multiple times, turn it into a reusable function. Also, avoid unnecessary complexity and keep your code simple and clean.
+
+## 6. High-Performance Code
+**Optimize performance** where necessary. Avoid unnecessary calculations, and keep your algorithms efficient and fast. Focus on optimizing code in areas where performance is critical, but avoid premature optimization.
+
+## 7. Reusability of Code
+Ensure that your code is **reusable**. Create modular structures and centralize common functionality into reusable functions or modules, making your code flexible and portable.
+
+## 8. External Dependencies and Libraries
+Include only the **necessary dependencies** in your project. Any external library or module should be added only when truly required, avoiding unnecessary bloat and dependencies.
+
+## 9. Code Documentation
+Every important function and class should be **documented**. This makes it easier for others (and future you) to understand your code. Comments should clarify complex processes and provide meaningful explanations.
+
+## 10. Sustainability
+Ensure that your code is **sustainable** in the long term. Instead of quick fixes, aim to design the code so that it is easy to maintain and extend over time.
+
+
+# Log Code Specification Document
+
+## 1. Giriş ve Amaç
+Bu doküman, **log kodu standardizasyonu** için izlenecek adımları, formatı ve araçları detaylı şekilde açıklar. Amaç:
+
+- Farklı servisler ve ortamlar arasında tutarlı log kodu yapısı kurmak
+- Hem insan hem de makine tarafından kolayca yorumlanabilir log mesajları üretmek
+- Otomatik validasyon, test ve dokümantasyon ile hata riskini en aza indirmek
+- CI/CD süreçlerinde log kodu kalitesini güvence altına almak
+
+## 2. Chat History Özet
+1. **Ortak Logging Altyapısı**: JSON tabanlı, context-aware loglama (requestId, userId, route) önerildi.
+2. **Numeric Kodlar**: Major/Minor/Patch mantığında (`1000.01.01`) organize edilen basit yapı tanımlandı.
+3. **Alternatif Formatlar**: `CATEGORY.CODE`, `ERR-SERVICE-CODE`, UUID gibi formatlar değerlendirildi.
+4. **Gelişmiş Format**: `ENV.SERVICE.CATEGORY.ACTION.OUTCOME.SEVERITY` hiyerarşisi önerildi.
+5. **Spec & Şema**: YAML/JSON tabanlı tek kaynak, TS tipleri, AJV/Zod validasyonu, doküman üretimi.
+6. **Parsing & Decoding**: Regex ve Zod/AJV ile parse, `decodeLogCode()` fonksiyonu.
+7. **Hit Analizi**: Spec’teki hangi tanıma denk geldiğinin adım adım çıkarılması.
+8. **CLI/UI & CI**: CLI komutu, Web UI önerisi, pipeline’da şema ve test entegrasyonu.
+
+## 3. Kod Formatı
+```
+<ENV>.<SERVICE>.<CATEGORY>.<ACTION>.<OUTCOME>.<SEVERITY>
+```
+Her segmentin amacı:
+
+| Segment   | Format    | Açıklama                                                    | Örnek      |
+|-----------|-----------|-------------------------------------------------------------|------------|
+| ENV       | 2 char    | Ortam: FE (Frontend), BE (Backend)                          | `BE`       |
+| SERVICE   | 4 digit   | Servis/domain kodu; her mikroservis veya modül benzersiz     | `1000`     |
+| CATEGORY  | 2 digit   | Alt domain veya feature kodu                                | `01`       |
+| ACTION    | 2 digit   | İşlem türü (fetch, create, delete vb.)                      | `02`       |
+| OUTCOME   | 2 digit   | İşlem sonucu (success, invalid, timeout vb.)                | `01`       |
+| SEVERITY  | 1 char    | Log seviyesi: Info (I), Warn (W), Error (E), Debug (D)      | `W`        |
+
+**Örnek:** `BE.1000.01.02.01.W` → Backend Auth servisinde login denemesi başarısız (invalid credentials), warn seviyesi.
+
+## 4. Merkezi Spec Dosyası
+Tüm log kodları ve meta bilgileri tek bir YAML/JSON dosyasında tanımlanır. Örnek `log-codes.yaml`:
+
+```yaml
+envs:
+  FE:
+    description: "Frontend uygulama"
+  BE:
+    description: "Backend servis"
+
+services:
+  auth:
+    code: 1000
+    description: "Authentication Service"
+    categories:
+      login:
+        code: 01
+        description: "Kullanıcı girişi"
+        actions:
+          attempt:
+            code: 02
+            description: "Giriş denemesi"
+            outcomes:
+              invalidCredentials:
+                code: 01
+                severity: W
+                message: "Invalid user credentials"
+                description: "Yanlış kullanıcı adı veya şifre"
+              success:
+                code: 02
+                severity: I
+                message: "Login successful"
+                description: "Başarılı giriş"
+```
+
+> **Not:** Yeni servis, kategori, action veya outcome eklerken bu dosyayı güncelleyin.
+
+## 5. TypeScript Entegrasyonu
+Otomatik üretilmiş `log-codes.ts` dosyası:
+
+```ts
+export type Env = 'FE' | 'BE';
+export type ServiceCode = '1000' | /*...*/;
+export type CategoryCode = '01' | /*...*/;
+export type ActionCode = '02' | /*...*/;
+export type OutcomeCode = '01' | /*...*/;
+export type Severity = 'I' | 'W' | 'E' | 'D';
+
+export type LogCode = `${Env}.${ServiceCode}.${CategoryCode}.${ActionCode}.${OutcomeCode}.${Severity}`;
+
+export function isValidLogCode(code: string): code is LogCode {
+  return /^[A-Z]{2}\.\d{4}\.\d{2}\.\d{2}\.\d{2}\.[IWED]$/.test(code);
+}
+```
+
+- **Amaç:** Kod eklerken veya runtime’da validasyon yaparken tip güvenliği sağlar.
+
+## 6. Regex ve Zod/AJV ile Doğrulama
+### Regex
+```ts
+const LOG_CODE_REGEX = /^([A-Z]{2})\.(\d{4})\.(\d{2})\.(\d{2})\.(\d{2})\.([IWED])$/;
+```
+### Zod Örneği
+```ts
+import { z } from 'zod';
+
+const LogCodeSchema = z.string()
+  .regex(/^[A-Z]{2}\.\d{4}\.\d{2}\.\d{2}\.\d{2}\.[IWED]$/)
+  .transform(code => {
+    const [env, service, category, action, outcome, severity] = code.split('.');
+    return { env, service, category, action, outcome, severity };
+  });
+```
+
+- **Avantaj:** Hem validate hem parse işlemi tek adımda.
+
+## 7. decodeLogCode() Fonksiyonu
+Spec’ten okuyarak, her segmentin spec içindeki tanımını getirir:
+
+```ts
+import spec from './log-codes.json';
+import { parseLogCode } from '@your-org/log-codes';
+
+export function decodeLogCode(code: string) {
+  const parts = parseLogCode(code);
+  // spec içinden segment açıklamalarını bul ve döndür
+  // ...
+  return {
+    env: { code: parts.env, description: spec.envs[parts.env].description },
+    service: { code: parts.service, key: 'auth', description: spec.services.auth.description },
+    // diğer segmentler...
+  };
+}
+```
+
+**Konsol veya UI için**: `console.table` veya React tablosu ile segment bazlı açıklamaları göster.
+
+## 8. CLI & Web UI
+- **CLI**: `npx @your-org/log-codes decode <code>` → JSON veya tablo çıktı
+- **Web UI**: React form + tablo; kullanıcı kodu girer, detayları görür.
+
+## 9. CI/CD Entegrasyonu
+1. **Schema Validasyonu**: `ajv validate -s log-code.schema.json -d log-codes.yaml`
+2. **Unit Test**: `decodeLogCode('BE.1000.01.02.01.W')` doğru sonuç veriyor mu?
+3. **Doküman Üretimi**: `npm run gen:docs` → Markdown doküman güncelleme.
+4. **Versiyonlama**: `log-codes.yaml` değişikliklerinde semver (patch, minor, major).
+
+## 10. Örnek JSON Log Çıktısı
+```json
+{
+  "timestamp": "2025-04-10T12:00:00Z",
+  "code": "BE.1000.01.02.01.W",
+  "message": "Invalid user credentials",
+  "level": "warn",
+  "correlationId": "abc-123",
+  "data": { "username": "ali@example.com" }
+}
+```
+
+---
+
+Bu doküman, tüm detaylarıyla log kodu standardını ve entegrasyon adımlarını açıklar. Ek açıklama, örnek veya soru için güncelleyebiliriz.
+

@@ -1,0 +1,44 @@
+# Source code
+src/
+
+# Tests
+__tests__/
+*.test.ts
+*.spec.ts
+coverage/
+
+# Development and build tools
+.github/
+.vscode/
+.idea/
+node_modules/
+tsconfig.json
+.eslintrc.js
+.eslintignore
+.prettierrc
+.prettierignore
+jest.config.js
+rollup.config.js
+webpack.config.js
+babel.config.js
+
+# Miscellaneous
+.DS_Store
+.env
+.env.*
+*.log
+*.tgz
+.npmrc
+.gitignore
+.travis.yml
+.cursorrules
+
+# Documentation
+docs/
+examples/
+*.md
+!README.md
+!LICENSE
+
+# Scripts
+scripts/ 
