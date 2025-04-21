@@ -10,7 +10,8 @@
     "forceConsistentCasingInFileNames": true,
     "lib": ["DOM", "ES2020"],
     "moduleResolution": "node",
-    "isolatedModules": true
+    "isolatedModules": true,
+    "rootDir": "./"
   },
   "include": [
     "src/**/*",

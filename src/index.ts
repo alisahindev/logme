@@ -24,16 +24,15 @@ export type {
   ServerLoggerConfig
 } from './utils/ServerLogger';
 
-// Only export fetch logger in browser environments
-let createFetchProxy: any;
+// Import FetchLogger directly
+import { createFetchProxy as fetchProxyImpl } from './utils/FetchLogger';
 
-// Check if window exists (browser environment)
-if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
-  // Dynamic import to avoid errors in Node.js environment
-  import('./utils/FetchLogger').then(module => {
-    createFetchProxy = module.createFetchProxy;
-  });
-}
-
-export { createFetchProxy };
+// Conditionally export the fetch logger based on environment
+// This approach works better with static analysis tools and bundlers
+export const createFetchProxy = typeof window !== 'undefined' && typeof window.fetch === 'function'
+  ? fetchProxyImpl
+  : () => {
+      console.warn('createFetchProxy is only available in browser environments');
+      return null;
+    };
   

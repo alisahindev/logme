@@ -5,7 +5,7 @@ import { promisify } from 'util';
 const execPromise = promisify(exec);
 
 // Path to the compiled CLI script
-const CLI_PATH = path.resolve(__dirname, '../../dist/cli.js');
+const CLI_PATH = path.resolve(__dirname, '../../dist/src/cli.js');
 
 // Helper function to run the CLI with arguments
 const runCLI = async (args: string) => {
