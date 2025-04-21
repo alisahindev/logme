@@ -53,7 +53,7 @@ const cli = yargs(hideBin(process.argv))
   })
   .command('generate', 'Generate a log code using interactive prompts', (yargs) => {
     return yargs;
-  }, async (argv) => {
+  }, async () => {
     try {
       // For simplicity in this implementation - would use inquirer in a full implementation
       // Display available options for each segment
