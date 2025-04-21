@@ -238,6 +238,289 @@ const logCodes = require('logme/dist/log-codes.json');
 console.log(logCodes.envs.BE.description); // "Backend"
 ```
 
+### Next.js Integration (SSR and Client)
+
+LogMe can be seamlessly integrated with Next.js applications, supporting both server-side rendering (SSR) and client-side operations:
+
+```typescript
+// lib/logger.js - Create a shared logger configuration
+import { logToConsole, generateCorrelationId, createLogData, LOG_CODES, generateLogCode } from 'logme';
+
+// Helper function to create and log data consistently
+export function logger(logCode, message, data = {}) {
+  const isClient = typeof window !== 'undefined';
+  const correlationId = generateCorrelationId();
+  
+  const logData = createLogData(
+    logCode,
+    message,
+    correlationId,
+    data
+  );
+  
+  // Log to console (could be extended to log to server/file in production)
+  logToConsole(logData);
+  
+  return { logData, correlationId };
+}
+
+// Log code generator helpers
+export const generateClientLogCode = (category, action, outcome, severity) => 
+  generateLogCode(
+    LOG_CODES.ENV.FE,
+    LOG_CODES.SERVICE.WEB_APP,
+    category,
+    action,
+    outcome,
+    severity
+  );
+
+export const generateServerLogCode = (category, action, outcome, severity) => 
+  generateLogCode(
+    LOG_CODES.ENV.BE,
+    LOG_CODES.SERVICE.WEB_APP,
+    category,
+    action,
+    outcome,
+    severity
+  );
+```
+
+#### Server-Side Integration
+
+For server components and API routes:
+
+```typescript
+// app/api/users/route.ts
+import { NextResponse } from 'next/server';
+import { logger, generateServerLogCode } from '@/lib/logger';
+import { LOG_CODES, generateCorrelationId } from 'logme';
+
+export async function GET(request: Request) {
+  const correlationId = request.headers.get('x-correlation-id') || generateCorrelationId();
+  
+  logger(
+    generateServerLogCode(
+      LOG_CODES.CATEGORY.REQUEST,
+      LOG_CODES.ACTION.FETCH,
+      LOG_CODES.OUTCOME.STARTED,
+      LOG_CODES.SEVERITY.INFO
+    ),
+    'Fetching users',
+    { url: request.url, correlationId }
+  );
+  
+  try {
+    const users = await fetchUsers();
+    
+    logger(
+      generateServerLogCode(
+        LOG_CODES.CATEGORY.REQUEST,
+        LOG_CODES.ACTION.FETCH,
+        LOG_CODES.OUTCOME.SUCCESS,
+        LOG_CODES.SEVERITY.INFO
+      ),
+      'Users fetched successfully',
+      { count: users.length, correlationId }
+    );
+    
+    return NextResponse.json({ users });
+  } catch (error) {
+    logger(
+      generateServerLogCode(
+        LOG_CODES.CATEGORY.REQUEST,
+        LOG_CODES.ACTION.FETCH,
+        LOG_CODES.OUTCOME.ERROR,
+        LOG_CODES.SEVERITY.ERROR
+      ),
+      'Failed to fetch users',
+      { error: error.message, correlationId }
+    );
+    
+    return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
+  }
+}
+```
+
+#### Creating a Middleware for Automatic Correlation IDs
+
+Next.js middleware can be used to automatically add correlation IDs:
+
+```typescript
+// middleware.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { generateCorrelationId } from 'logme';
+
+export function middleware(request: NextRequest) {
+  const response = NextResponse.next();
+  
+  // Generate a correlation ID if not present
+  const correlationId = request.headers.get('x-correlation-id') || generateCorrelationId();
+  
+  // Set for the current request flow
+  response.headers.set('x-correlation-id', correlationId);
+  
+  return response;
+}
+
+export const config = {
+  matcher: ['/api/:path*'],
+};
+```
+
+#### Client-Side Integration
+
+For client components and hooks:
+
+```typescript
+// components/LoginForm.tsx
+'use client';
+
+import { useState } from 'react';
+import { logger, generateClientLogCode } from '@/lib/logger';
+import { LOG_CODES } from 'logme';
+
+export default function LoginForm() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    const { correlationId } = logger(
+      generateClientLogCode(
+        LOG_CODES.CATEGORY.AUTH,
+        LOG_CODES.ACTION.LOGIN,
+        LOG_CODES.OUTCOME.STARTED,
+        LOG_CODES.SEVERITY.INFO
+      ),
+      'User login attempt',
+      { email }
+    );
+    
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Correlation-ID': correlationId
+        },
+        body: JSON.stringify({ email, password })
+      });
+      
+      if (!response.ok) throw new Error('Login failed');
+      
+      logger(
+        generateClientLogCode(
+          LOG_CODES.CATEGORY.AUTH,
+          LOG_CODES.ACTION.LOGIN,
+          LOG_CODES.OUTCOME.SUCCESS,
+          LOG_CODES.SEVERITY.INFO
+        ),
+        'User login successful',
+        { correlationId }
+      );
+      
+      // Handle successful login
+    } catch (error) {
+      logger(
+        generateClientLogCode(
+          LOG_CODES.CATEGORY.AUTH,
+          LOG_CODES.ACTION.LOGIN,
+          LOG_CODES.OUTCOME.ERROR,
+          LOG_CODES.SEVERITY.ERROR
+        ),
+        'User login failed',
+        { error: error.message, correlationId }
+      );
+      
+      // Handle login error
+    }
+  };
+  
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* Form fields */}
+    </form>
+  );
+}
+```
+
+#### App-Level Setup with Context
+
+For application-wide logging through React Context:
+
+```typescript
+// context/LoggingContext.tsx
+'use client';
+
+import { createContext, useContext, useEffect } from 'react';
+import { logger, generateClientLogCode } from '@/lib/logger';
+import { createFetchProxy, LOG_CODES } from 'logme';
+
+const LoggingContext = createContext(null);
+
+export function LoggingProvider({ children }) {
+  useEffect(() => {
+    // Setup fetch logging on client side only
+    if (typeof window !== 'undefined') {
+      createFetchProxy({
+        logRequestResponse: true,
+        logResponseContent: process.env.NODE_ENV !== 'production',
+        correlationIdHeader: 'X-Correlation-ID'
+      });
+      
+      // Log page transitions
+      const handleRouteChange = (url) => {
+        logger(
+          generateClientLogCode(
+            LOG_CODES.CATEGORY.NAVIGATION,
+            LOG_CODES.ACTION.NAVIGATE,
+            LOG_CODES.OUTCOME.SUCCESS,
+            LOG_CODES.SEVERITY.INFO
+          ),
+          'Page navigation',
+          { url }
+        );
+      };
+      
+      window.addEventListener('popstate', () => handleRouteChange(window.location.pathname));
+      
+      return () => {
+        window.removeEventListener('popstate', () => handleRouteChange(window.location.pathname));
+      };
+    }
+  }, []);
+  
+  return (
+    <LoggingContext.Provider value={logger}>
+      {children}
+    </LoggingContext.Provider>
+  );
+}
+
+export const useLogger = () => useContext(LoggingContext);
+```
+
+And add it to your app layout:
+
+```typescript
+// app/layout.tsx
+import { LoggingProvider } from '@/context/LoggingContext';
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        <LoggingProvider>
+          {children}
+        </LoggingProvider>
+      </body>
+    </html>
+  );
+}
+```
+
 ## Configuration
 
 ### FetchLogger Configuration
@@ -282,4 +565,4 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
