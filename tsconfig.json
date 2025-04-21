@@ -14,8 +14,7 @@
   },
   "include": [
     "src/**/*",
-    "scripts/**/*",
-    "jest.config.js"
+    "scripts/**/*"
   ],
   "exclude": [
     "node_modules",

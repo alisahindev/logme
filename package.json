@@ -2,10 +2,10 @@
   "name": "logme",
   "version": "1.0.0",
   "description": "Standardized logging utility with code-based logging system",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
   "bin": {
-    "logme": "dist/cli.js"
+    "logme": "dist/src/cli.js"
   },
   "files": [
     "dist"
@@ -17,7 +17,7 @@
     "test": "jest",
     "lint": "eslint src --ext .ts",
     "dev": "tsc --watch",
-    "cli": "node dist/cli.js",
+    "cli": "node dist/src/cli.js",
     "docs": "typedoc --out docs src",
     "gen:schema": "ts-node scripts/generateSchema.ts",
     "pack-local": "node install-local.js"
