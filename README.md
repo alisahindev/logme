@@ -69,6 +69,81 @@ fetch('https://api.example.com/users')
   .then(data => console.log(data));
 ```
 
+### Express Server Logging (Node.js)
+
+```typescript
+import express from 'express';
+import bodyParser from 'body-parser';
+import { createExpressLogger, expressErrorLogger, createDatabaseLogger } from 'logme';
+
+const app = express();
+
+// Parse JSON bodies
+app.use(bodyParser.json());
+
+// Initialize the logger middleware with custom configuration
+const logger = createExpressLogger({
+  logRequestBody: true,
+  logResponseBody: true,
+  logHeaders: false,
+  excludePaths: ['/health', '/metrics', '/favicon.ico'],
+  customIDHeader: 'X-Request-ID'
+});
+
+// Create a database logger for SQL operations
+const dbLogger = createDatabaseLogger('postgres');
+
+// Apply the logger middleware to all routes
+app.use(logger);
+
+// Your route handlers
+app.get('/api/users', (req, res) => {
+  // Access the correlation ID from the request
+  const { correlationId } = req;
+  
+  // Log database operations with the same correlation ID
+  dbLogger.logQuery('SELECT * FROM users', [], correlationId);
+  
+  res.json({ users: [] });
+});
+
+// Apply error logger middleware (after routes)
+app.use(expressErrorLogger());
+
+app.listen(3000, () => {
+  console.log('Server running on port 3000');
+});
+```
+
+### Database Operation Logging (Node.js)
+
+```typescript
+import { createDatabaseLogger } from 'logme';
+
+// Create a database logger instance
+const dbLogger = createDatabaseLogger('mongodb');
+
+// Log a successful query
+dbLogger.logQuery(
+  'db.users.find({email: "user@example.com"})', 
+  [{email: "user@example.com"}],
+  'correlation-123'
+);
+
+// Log a query error
+try {
+  // Database operation that fails
+  throw new Error('MongoDB connection failed');
+} catch (error) {
+  dbLogger.logQueryError(
+    'db.users.find({email: "user@example.com"})',
+    error,
+    [{email: "user@example.com"}],
+    'correlation-123'
+  );
+}
+```
+
 ### Decoding Log Codes
 
 ```typescript
@@ -177,6 +252,27 @@ createFetchProxy({
   logResponseContent: false,
   // Log the function that called fetch
   logFunctionName: true
+});
+```
+
+### ServerLogger Configuration
+
+```typescript
+createExpressLogger({
+  // Log request body details (sanitized for sensitive info)
+  logRequestBody: true,
+  // Log response body details
+  logResponseBody: true,
+  // Include headers in logs
+  logHeaders: false,
+  // Paths to exclude from logging
+  excludePaths: ['/health', '/metrics', '/favicon.ico'],
+  // Paths where request body should not be logged
+  excludeRequestBody: ['/api/auth/login', '/api/payment'],
+  // Paths where response body should not be logged
+  excludeResponseBody: ['/api/users/sensitive'],
+  // Custom header for correlation ID
+  customIDHeader: 'X-Request-ID'
 });
 ```
 

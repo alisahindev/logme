@@ -18,6 +18,12 @@ export type {
   DecodedLogCode, DecodedLogSegment
 } from './utils/LogDecoder';
 
+// Re-export ServerLogger utilities
+export { createDatabaseLogger, createExpressLogger, expressErrorLogger } from './utils/ServerLogger';
+export type {
+  ServerLoggerConfig
+} from './utils/ServerLogger';
+
 // Only export fetch logger in browser environments
 let createFetchProxy: any;
 

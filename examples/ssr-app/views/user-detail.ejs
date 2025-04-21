@@ -1,0 +1,14 @@
+<div class="user-detail card">
+  <h2><%= title %></h2>
+  
+  <div>
+    <p><strong>ID:</strong> <%= user.id %></p>
+    <p><strong>Name:</strong> <%= user.name %></p>
+    <p><strong>Email:</strong> <%= user.email %></p>
+  </div>
+  
+  <p>This page demonstrates a database query with parameters, using the user ID <%= user.id %> as a parameter.</p>
+  <p>The database query is logged with the same correlation ID as the HTTP request, enabling request tracing.</p>
+  
+  <p><a href="/users">Back to Users List</a></p>
+</div> 

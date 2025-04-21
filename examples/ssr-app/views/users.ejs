@@ -1,0 +1,12 @@
+<h2><%= title %></h2>
+<p>This page displays a list of users from the database. Each request to this page will generate a database log entry with a correlation ID.</p>
+
+<div class="users-list">
+  <% users.forEach(user => { %>
+    <div class="card">
+      <h3><%= user.name %></h3>
+      <p>Email: <%= user.email %></p>
+      <p><a href="/users/<%= user.id %>">View Details</a></p>
+    </div>
+  <% }); %>
+</div> 
